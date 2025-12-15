@@ -316,7 +316,7 @@ const SavedItemCard = React.memo(({
             <img 
               src={LOGO_URL}
               alt="Logo 데크센터" 
-              className="h-7 w-auto object-contain mb-2" 
+              className="h-7 w-auto object-contain" 
               loading="eager"
             />
             <div className="text-xs text-slate-400">https://deckctr.com</div>
@@ -519,22 +519,30 @@ const App: React.FC = () => {
         if (!blob) return;
         const safeTitle = title.replace(/[^a-z0-9가-힣]/gi, '_');
         const fileName = `견적_${safeTitle}_${id}.png`;
+        const file = new File([blob], fileName, { type: 'image/png' });
 
-        if (navigator.share && navigator.canShare) {
+        // Check if device is mobile
+        const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Check if sharing is supported
+        const canShare = navigator.share && navigator.canShare && navigator.canShare({ files: [file] });
+
+        // If mobile AND sharing is supported, prioritize sharing
+        if (isMobile && canShare) {
           try {
-            const file = new File([blob], fileName, { type: 'image/png' });
-            if (navigator.canShare({ files: [file] })) {
-              await navigator.share({
-                files: [file],
-                title: '데크 견적서 공유',
-              });
-              return;
-            }
+            await navigator.share({
+              files: [file],
+              title: '데크 견적서 공유',
+            });
+            return; // Success, stop here
           } catch (error) {
-            console.log('Share API skipped or failed, falling back to download', error);
+            console.log('Share API skipped or failed', error);
+            // On mobile, if share is cancelled, DO NOT fallback to download.
+            return;
           }
         }
         
+        // For PC or if sharing is not supported on mobile -> Direct Download
         const link = document.createElement('a');
         link.download = fileName;
         link.href = URL.createObjectURL(blob);
